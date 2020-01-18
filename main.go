@@ -2,15 +2,15 @@ package main
 
 import (
 	"os"
-    "os/signal"
+	"os/signal"
 	"fmt"
 	"sync"
-    "syscall"
+	"syscall"
 	"strconv"
 
 	"github.com/aztecrabbit/liblog"
 	"github.com/aztecrabbit/libproxyrotator"
-	"github.com/aztecrabbit/brainfuck-tunnel/src/sshclient"
+	"github.com/aztecrabbit/brainfuck-tunnel-go/src/sshclient"
 )
 
 const (
