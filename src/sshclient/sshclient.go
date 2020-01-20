@@ -56,7 +56,8 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 				"sshpass -p '%s' ssh -v %s -p %s -l '%s' " +
 					"-o StrictHostKeyChecking=no " +
 					"-o UserKnownHostsFile=/dev/null " +
-					"-o ProxyCommand='nc -X CONNECT -x %s:%s %%h %%p' " +
+					"-o ProxyCommand='corkscrew %s %s %%h %%p' " +
+					// "-o ProxyCommand='nc -X CONNECT -x %s:%s %%h %%p' " +
 					"-CND %s ",
 				s.Password,
 				s.Host,
@@ -104,8 +105,6 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 		command.Wait()
 
 		time.Sleep(200 * time.Millisecond)
-
-		s.Log("Reconnecting")
 	}
 
 }

@@ -4,11 +4,13 @@ import (
 	"os"
 	"os/signal"
 	"fmt"
+	"time"
 	"sync"
 	"syscall"
 	"strconv"
 
 	"github.com/aztecrabbit/liblog"
+	"github.com/aztecrabbit/libinject"
 	"github.com/aztecrabbit/libproxyrotator"
 	"github.com/aztecrabbit/brainfuck-tunnel-go/src/sshclient"
 )
@@ -36,6 +38,14 @@ func main() {
 	threads := 6
 	channel := make(chan bool, threads)
 
+	Inject := new(libinject.Inject)
+	Inject.Port = "8089"
+	Inject.ProxyHost = "202.152.240.50"
+	Inject.ProxyPort = "80"
+	Inject.ProxyPayload = "CONNECT 103.253.27.56:80 HTTP/1.0\r\nHost: t.co\r\nHost: \r\n\r\n"
+	Inject.ProxyTimeout = 5
+	Inject.LogConnecting = false
+
 	ProxyRotator := new(libproxyrotator.ProxyRotator)
 	ProxyRotator.Port = "3080"
 
@@ -61,7 +71,7 @@ func main() {
 		SshClient.Username = "aztecrabbit"
 		SshClient.Password = "aztecrabbit"
 		SshClient.InjectHost = "0.0.0.0"
-		SshClient.InjectPort = "8989"
+		SshClient.InjectPort = "8089"
 		SshClient.ListenPort = strconv.Itoa(ProxyRotatorPort + i)
 		SshClient.Loop = true
 
@@ -70,7 +80,13 @@ func main() {
 		go SshClient.Start(&wg, channel)
 	}
 
-	ProxyRotator.Start()
+	go ProxyRotator.Start()
+	go Inject.Start()
+
+	time.Sleep(200 * time.Millisecond)
+
+	liblog.LogInfo("Proxy Rotator running on port " + ProxyRotator.Port, "INFO", liblog.Colors["G1"])
+	liblog.LogInfo("Inject running on port " + Inject.Port, "INFO", liblog.Colors["G1"])
 
 	for i := 0; i < threads; i++ {
 		channel <- true
