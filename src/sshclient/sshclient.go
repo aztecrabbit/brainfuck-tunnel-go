@@ -29,14 +29,10 @@ type SshClient struct {
 	Loop bool
 }
 
-func (s *SshClient) LogColor(message string, color string) {
+func (s *SshClient) LogInfo(message string, color string) {
 	if s.Loop {
 		liblog.LogInfo(message, s.ListenPort, color)
 	}
-}
-
-func (s *SshClient) Log(message string) {
-	s.LogColor(message, liblog.Colors["G1"])
 }
 
 func (s *SshClient) Stop() {
@@ -48,7 +44,7 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 
 	<- channel
 
-	s.Log(fmt.Sprintf("Connecting to %s port %s", s.Host, s.Port))
+	s.LogInfo(fmt.Sprintf("Connecting to %s port %s", s.Host, s.Port), liblog.Colors["G1"])
 
 	for Loop && s.Loop {
 		command := exec.Command(
@@ -81,21 +77,21 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 				line = scanner.Text()
 
 				if strings.Contains(line, "debug1: pledge: ") {
-					s.LogColor("Connected", liblog.Colors["Y1"])
+					s.LogInfo("Connected", liblog.Colors["Y1"])
 
 				} else if strings.Contains(line, "Permission denied") {
-					s.LogColor("Access Denied", liblog.Colors["R1"])
+					s.LogInfo("Access Denied", liblog.Colors["R1"])
 					s.Stop()
 
 				} else if strings.Contains(line, "Connection closed") {
-					s.LogColor("Connection closed", liblog.Colors["R1"])
+					s.LogInfo("Connection closed", liblog.Colors["R1"])
 
 				} else if strings.Contains(line, "Address already in use") {
-					s.LogColor("Port used by another programs", liblog.Colors["R1"])
+					s.LogInfo("Port used by another programs", liblog.Colors["R1"])
 					s.Stop()
 
 				} else {
-					// s.LogColor(line, liblog.Colors["G2"])
+					// s.LogInfo(line, liblog.Colors["G2"])
 
 				}
 			}
