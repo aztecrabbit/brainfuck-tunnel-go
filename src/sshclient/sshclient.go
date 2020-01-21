@@ -23,8 +23,8 @@ type SshClient struct {
 	Port string
 	Username string
 	Password string
-	InjectHost string
-	InjectPort string
+	ProxyHost string
+	ProxyPort string
 	ListenPort string
 	Loop bool
 }
@@ -59,8 +59,8 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 				s.Host,
 				s.Port,
 				s.Username,
-				s.InjectHost,
-				s.InjectPort,
+				s.ProxyHost,
+				s.ProxyPort,
 				s.ListenPort,
 			),
 		)

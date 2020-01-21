@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"fmt"
 	"time"
 	"sync"
@@ -23,15 +22,17 @@ const (
 	copyrightAuthor = "Aztec Rabbit"
 )
 
-func main() {
+func init() {
 	InterruptHandler := &libutils.InterruptHandler{
 		Handle: func() {
 			sshclient.Stop()
 			liblog.LogKeyboardInterrupt()
 		},
-    }
+	}
 	InterruptHandler.Start()
+}
 
+func main() {
 	liblog.Header(
 		[]string{
 			fmt.Sprintf("%s [%s Version. %s]", appName, appVersionName, appVersionCode),
@@ -40,25 +41,23 @@ func main() {
 		liblog.Colors["G1"],
 	)
 
-	var wg sync.WaitGroup
+	ProxyRotator := new(libproxyrotator.ProxyRotator)
+	ProxyRotator.Port = "3080"
+
+	Inject := new(libinject.Inject)
+	Inject.Config = &libinject.Config{
+		Port: "8089",
+		ProxyHost: "202.152.240.50",
+		ProxyPort: "80",
+		ProxyPayload: "[raw][crlf]Host: t.co[crlf]Host: [crlf][crlf]",
+		ProxyTimeout: 10,
+		ShowLog: false,
+	}
 
 	threads := 4
 	channel := make(chan bool, threads)
 
-	Inject := new(libinject.Inject)
-	Inject.Port = "8089"
-	Inject.ProxyHost = "202.152.240.50"
-	Inject.ProxyPort = "80"
-	Inject.ProxyPayload = "CONNECT [host_port] [protocol][crlf]Host: t.co[crlf]Host: [crlf][crlf]"
-	Inject.ProxyTimeout = 10
-	Inject.LogConnecting = false
-
-	ProxyRotator := new(libproxyrotator.ProxyRotator)
-	ProxyRotator.Port = "3080"
-
-	if len(os.Args) > 1 {
-		ProxyRotator.Port = os.Args[1]
-	}
+	var wg sync.WaitGroup
 
 	for i := 1; i <= threads; i++ {
 		wg.Add(1)
@@ -69,16 +68,19 @@ func main() {
 		}
 
 		SshClient := new(sshclient.SshClient)
-		// SshClient.Host = "m.sg1.ssh.speedssh.com"
-		// SshClient.Host = "157.245.62.248"
-		// SshClient.Port = "22"
-		// SshClient.Username = "speedssh.com-aztecrabbit"
+		SshClient.Host = "m.sg1.ssh.speedssh.com"
+		SshClient.Host = "157.245.62.248"
+		SshClient.Port = "22"
+		SshClient.Username = "speedssh.com-aztecrabbit"
+		SshClient.Password = "aztecrabbit"
+		/*
 		SshClient.Host = "103.253.27.56"
 		SshClient.Port = "80"
 		SshClient.Username = "aztecrabbit"
 		SshClient.Password = "aztecrabbit"
-		SshClient.InjectHost = "0.0.0.0"
-		SshClient.InjectPort = "8089"
+		*/
+		SshClient.ProxyHost = "0.0.0.0"
+		SshClient.ProxyPort = "8089"
 		SshClient.ListenPort = strconv.Itoa(ProxyRotatorPort + i)
 		SshClient.Loop = true
 
@@ -93,7 +95,7 @@ func main() {
 	time.Sleep(200 * time.Millisecond)
 
 	liblog.LogInfo("Proxy Rotator running on port " + ProxyRotator.Port, "INFO", liblog.Colors["G1"])
-	liblog.LogInfo("Inject running on port " + Inject.Port, "INFO", liblog.Colors["G1"])
+	liblog.LogInfo("Inject running on port " + Inject.Config.Port, "INFO", liblog.Colors["G1"])
 
 	for i := 0; i < threads; i++ {
 		channel <- true
