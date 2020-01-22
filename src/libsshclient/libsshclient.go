@@ -1,4 +1,4 @@
-package sshclient
+package libsshclient
 
 import (
 	"fmt"
@@ -13,20 +13,33 @@ import (
 
 var (
 	Loop bool = true
+    ConfigDefault = &Config{
+		Host: "157.245.62.248",
+		Port: "22",
+		Username: "speedssh.com-aztecrabbit",
+		Password: "aztecrabbit",
+		ProxyHost: "127.0.0.1",
+		ProxyPort: "8989",
+    }
 )
 
 func Stop() {
 	Loop = false
 }
 
-type SshClient struct {
+type Config struct {
 	Host string
 	Port string
 	Username string
 	Password string
 	ProxyHost string
 	ProxyPort string
+}
+
+type SshClient struct {
+	Config *Config
 	ListenPort string
+	Verbose bool
 	Loop bool
 }
 
@@ -45,7 +58,7 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 
 	<- channel
 
-	s.LogInfo(fmt.Sprintf("Connecting to %s port %s", s.Host, s.Port), liblog.Colors["G1"])
+	s.LogInfo(fmt.Sprintf("Connecting to %s port %s", s.Config.Host, s.Config.Port), liblog.Colors["G1"])
 
 	for Loop && s.Loop {
 		command := exec.Command(
@@ -56,12 +69,12 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 					"-o ProxyCommand='corkscrew %s %s %%h %%p' " +
 					// "-o ProxyCommand='nc -X CONNECT -x %s:%s %%h %%p' " +
 					"-CND %s ",
-				s.Password,
-				s.Host,
-				s.Port,
-				s.Username,
-				s.ProxyHost,
-				s.ProxyPort,
+				s.Config.Password,
+				s.Config.Host,
+				s.Config.Port,
+				s.Config.Username,
+				s.Config.ProxyHost,
+				s.Config.ProxyPort,
 				s.ListenPort,
 			),
 		)
@@ -92,8 +105,9 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 					s.Stop()
 
 				} else {
-					// s.LogInfo(line, liblog.Colors["G2"])
-
+					if s.Verbose {
+						s.LogInfo(line, liblog.Colors["G2"])
+					}
 				}
 			}
 		}()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"time"
 	"sync"
@@ -10,7 +11,7 @@ import (
 	"github.com/aztecrabbit/libutils"
 	"github.com/aztecrabbit/libinject"
 	"github.com/aztecrabbit/libproxyrotator"
-	"github.com/aztecrabbit/brainfuck-tunnel-go/src/sshclient"
+	"github.com/aztecrabbit/brainfuck-tunnel-go/src/libsshclient"
 )
 
 const (
@@ -22,10 +23,17 @@ const (
 	copyrightAuthor = "Aztec Rabbit"
 )
 
+type Config struct {
+	ProxyRotator *libproxyrotator.Config
+	Inject *libinject.Config
+	SshClient *libsshclient.Config
+	SshClientThreads int
+}
+
 func init() {
 	InterruptHandler := &libutils.InterruptHandler{
 		Handle: func() {
-			sshclient.Stop()
+			libsshclient.Stop()
 			liblog.LogKeyboardInterrupt()
 		},
 	}
@@ -41,47 +49,44 @@ func main() {
 		liblog.Colors["G1"],
 	)
 
+	config := new(Config)
+	configDefault := new(Config)
+	configDefault.SshClientThreads = 4
+
+	// Proxy Rotator config
+	configDefault.ProxyRotator = libproxyrotator.ConfigDefault
+
+	// Inject config
+	configDefault.Inject = libinject.ConfigDefault
+
+	// Ssh Client config
+	configDefault.SshClient = libsshclient.ConfigDefault
+	configDefault.SshClient.ProxyPort = configDefault.Inject.Port
+
+	libutils.JsonReadWrite(libutils.RealPath("config.json"), config, configDefault)
+
 	ProxyRotator := new(libproxyrotator.ProxyRotator)
-	ProxyRotator.Port = "3080"
+	ProxyRotator.Config = config.ProxyRotator
 
 	Inject := new(libinject.Inject)
-	Inject.Config = &libinject.Config{
-		Port: "8089",
-		ProxyHost: "202.152.240.50",
-		ProxyPort: "80",
-		ProxyPayload: "[raw][crlf]Host: t.co[crlf]Host: [crlf][crlf]",
-		ProxyTimeout: 10,
-		ShowLog: false,
+	Inject.Config = config.Inject
+
+	if len(os.Args) > 1 {
+		Inject.Config.Port = os.Args[1]
 	}
 
-	threads := 4
-	channel := make(chan bool, threads)
+	channel := make(chan bool, config.SshClientThreads)
 
 	var wg sync.WaitGroup
 
-	for i := 1; i <= threads; i++ {
+	for i := 1; i <= config.SshClientThreads; i++ {
 		wg.Add(1)
 
-		ProxyRotatorPort, err := strconv.Atoi(ProxyRotator.Port)
-		if err != nil {
-			panic(err)
-		}
-
-		SshClient := new(sshclient.SshClient)
-		SshClient.Host = "m.sg1.ssh.speedssh.com"
-		SshClient.Host = "157.245.62.248"
-		SshClient.Port = "22"
-		SshClient.Username = "speedssh.com-aztecrabbit"
-		SshClient.Password = "aztecrabbit"
-		/*
-		SshClient.Host = "103.253.27.56"
-		SshClient.Port = "80"
-		SshClient.Username = "aztecrabbit"
-		SshClient.Password = "aztecrabbit"
-		*/
-		SshClient.ProxyHost = "0.0.0.0"
-		SshClient.ProxyPort = "8089"
-		SshClient.ListenPort = strconv.Itoa(ProxyRotatorPort + i)
+		SshClient := new(libsshclient.SshClient)
+		SshClient.Config = config.SshClient
+		SshClient.Config.ProxyPort = Inject.Config.Port
+		SshClient.ListenPort = strconv.Itoa(libutils.Atoi(ProxyRotator.Config.Port) + i)
+		SshClient.Verbose = false
 		SshClient.Loop = true
 
 		ProxyRotator.Proxies = append(ProxyRotator.Proxies, "0.0.0.0:" + SshClient.ListenPort)
@@ -94,10 +99,10 @@ func main() {
 
 	time.Sleep(200 * time.Millisecond)
 
-	liblog.LogInfo("Proxy Rotator running on port " + ProxyRotator.Port, "INFO", liblog.Colors["G1"])
+	liblog.LogInfo("Proxy Rotator running on port " + ProxyRotator.Config.Port, "INFO", liblog.Colors["G1"])
 	liblog.LogInfo("Inject running on port " + Inject.Config.Port, "INFO", liblog.Colors["G1"])
 
-	for i := 0; i < threads; i++ {
+	for i := 0; i < config.SshClientThreads; i++ {
 		channel <- true
 	}
 
