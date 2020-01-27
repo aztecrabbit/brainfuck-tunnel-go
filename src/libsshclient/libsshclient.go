@@ -1,25 +1,24 @@
 package libsshclient
 
 import (
-	"fmt"
 	"os/exec"
-	"sync"
+	"fmt"
 	"time"
 	"bufio"
 	"strings"
+	"syscall"
 
 	"github.com/aztecrabbit/liblog"
+	"github.com/aztecrabbit/libproxyrotator"
 )
 
 var (
-	Loop bool = true
-    ConfigDefault = &Config{
+	Loop = true
+    DefaultConfig = &Config{
 		Host: "157.245.62.248",
 		Port: "22",
 		Username: "speedssh.com-aztecrabbit",
 		Password: "aztecrabbit",
-		ProxyHost: "127.0.0.1",
-		ProxyPort: "8989",
     }
 )
 
@@ -32,19 +31,19 @@ type Config struct {
 	Port string
 	Username string
 	Password string
-	ProxyHost string
-	ProxyPort string
 }
 
 type SshClient struct {
+	ProxyRotator *libproxyrotator.ProxyRotator
 	Config *Config
+	InjectPort string
 	ListenPort string
 	Verbose bool
 	Loop bool
 }
 
 func (s *SshClient) LogInfo(message string, color string) {
-	if s.Loop {
+	if Loop && s.Loop {
 		liblog.LogInfo(message, s.ListenPort, color)
 	}
 }
@@ -53,11 +52,7 @@ func (s *SshClient) Stop() {
 	s.Loop = false
 }
 
-func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
-	defer wg.Done()
-
-	<- channel
-
+func (s *SshClient) Start() {
 	s.LogInfo(fmt.Sprintf("Connecting to %s port %s", s.Config.Host, s.Config.Port), liblog.Colors["G1"])
 
 	for Loop && s.Loop {
@@ -66,15 +61,14 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 				"sshpass -p '%s' ssh -v %s -p %s -l '%s' " +
 					"-o StrictHostKeyChecking=no " +
 					"-o UserKnownHostsFile=/dev/null " +
-					"-o ProxyCommand='corkscrew %s %s %%h %%p' " +
+					"-o ProxyCommand='corkscrew 127.0.0.1 %s %%h %%p' " +
 					// "-o ProxyCommand='nc -X CONNECT -x %s:%s %%h %%p' " +
 					"-CND %s ",
 				s.Config.Password,
 				s.Config.Host,
 				s.Config.Port,
 				s.Config.Username,
-				s.Config.ProxyHost,
-				s.Config.ProxyPort,
+				s.InjectPort,
 				s.ListenPort,
 			),
 		)
@@ -91,6 +85,7 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 				line = scanner.Text()
 
 				if strings.Contains(line, "debug1: pledge: ") {
+					s.ProxyRotator.Proxies = append(s.ProxyRotator.Proxies, "0.0.0.0:" + s.ListenPort)
 					s.LogInfo("Connected", liblog.Colors["Y1"])
 
 				} else if strings.Contains(line, "Permission denied") {
@@ -110,12 +105,17 @@ func (s *SshClient) Start(wg *sync.WaitGroup, channel chan bool) {
 					}
 				}
 			}
+
+			command.Process.Signal(syscall.SIGTERM)
 		}()
 
 		command.Start()
 		command.Wait()
 
-		time.Sleep(200 * time.Millisecond)
-	}
+		s.ProxyRotator.DeleteProxy("0.0.0.0:" + s.ListenPort)
 
+		time.Sleep(200 * time.Millisecond)
+
+		s.LogInfo("Reconnecting", liblog.Colors["G1"])
+	}
 }

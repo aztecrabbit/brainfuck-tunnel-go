@@ -4,12 +4,12 @@ import (
 	"os"
 	"fmt"
 	"time"
-	"sync"
 	"strconv"
 
 	"github.com/aztecrabbit/liblog"
 	"github.com/aztecrabbit/libutils"
 	"github.com/aztecrabbit/libinject"
+	"github.com/aztecrabbit/libredsocks"
 	"github.com/aztecrabbit/libproxyrotator"
 	"github.com/aztecrabbit/brainfuck-tunnel-go/src/libsshclient"
 )
@@ -23,19 +23,23 @@ const (
 	copyrightAuthor = "Aztec Rabbit"
 )
 
+var (
+	InterruptHandler = new(libutils.InterruptHandler)
+	Redsocks = new(libredsocks.Redsocks)
+)
+
 type Config struct {
 	ProxyRotator *libproxyrotator.Config
 	Inject *libinject.Config
-	SshClient *libsshclient.Config
 	SshClientThreads int
+	SshClient *libsshclient.Config
 }
 
 func init() {
-	InterruptHandler := &libutils.InterruptHandler{
-		Handle: func() {
-			libsshclient.Stop()
-			liblog.LogKeyboardInterrupt()
-		},
+	InterruptHandler.Handle = func() {
+		libredsocks.Stop(Redsocks)
+		libsshclient.Stop()
+		liblog.LogKeyboardInterrupt()
 	}
 	InterruptHandler.Start()
 }
@@ -50,48 +54,23 @@ func main() {
 	)
 
 	config := new(Config)
-	configDefault := new(Config)
-	configDefault.SshClientThreads = 4
+	defaultConfig := new(Config)
+	defaultConfig.ProxyRotator = libproxyrotator.DefaultConfig
+	defaultConfig.Inject = libinject.DefaultConfig
+	defaultConfig.SshClientThreads = 4
+	defaultConfig.SshClient = libsshclient.DefaultConfig
 
-	// Proxy Rotator config
-	configDefault.ProxyRotator = libproxyrotator.ConfigDefault
-
-	// Inject config
-	configDefault.Inject = libinject.ConfigDefault
-
-	// Ssh Client config
-	configDefault.SshClient = libsshclient.ConfigDefault
-	configDefault.SshClient.ProxyPort = configDefault.Inject.Port
-
-	libutils.JsonReadWrite(libutils.RealPath("config.json"), config, configDefault)
+	libutils.JsonReadWrite(libutils.RealPath("config.json"), config, defaultConfig)
 
 	ProxyRotator := new(libproxyrotator.ProxyRotator)
 	ProxyRotator.Config = config.ProxyRotator
 
 	Inject := new(libinject.Inject)
+	Inject.Redsocks = Redsocks
 	Inject.Config = config.Inject
 
 	if len(os.Args) > 1 {
 		Inject.Config.Port = os.Args[1]
-	}
-
-	channel := make(chan bool, config.SshClientThreads)
-
-	var wg sync.WaitGroup
-
-	for i := 1; i <= config.SshClientThreads; i++ {
-		wg.Add(1)
-
-		SshClient := new(libsshclient.SshClient)
-		SshClient.Config = config.SshClient
-		SshClient.Config.ProxyPort = Inject.Config.Port
-		SshClient.ListenPort = strconv.Itoa(libutils.Atoi(ProxyRotator.Config.Port) + i)
-		SshClient.Verbose = false
-		SshClient.Loop = true
-
-		ProxyRotator.Proxies = append(ProxyRotator.Proxies, "0.0.0.0:" + SshClient.ListenPort)
-
-		go SshClient.Start(&wg, channel)
 	}
 
 	go ProxyRotator.Start()
@@ -102,9 +81,20 @@ func main() {
 	liblog.LogInfo("Proxy Rotator running on port " + ProxyRotator.Config.Port, "INFO", liblog.Colors["G1"])
 	liblog.LogInfo("Inject running on port " + Inject.Config.Port, "INFO", liblog.Colors["G1"])
 
-	for i := 0; i < config.SshClientThreads; i++ {
-		channel <- true
+	Redsocks.Config = libredsocks.DefaultConfig
+	Redsocks.Start()
+
+	for i := 1; i <= config.SshClientThreads; i++ {
+		SshClient := new(libsshclient.SshClient)
+		SshClient.ProxyRotator = ProxyRotator
+		SshClient.Config = config.SshClient
+		SshClient.InjectPort = Inject.Config.Port
+		SshClient.ListenPort = strconv.Itoa(libutils.Atoi(ProxyRotator.Config.Port) + i)
+		SshClient.Verbose = false
+		SshClient.Loop = true
+
+		go SshClient.Start()
 	}
 
-	wg.Wait()
+	InterruptHandler.Wait()
 }

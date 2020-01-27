@@ -1,2 +1,5 @@
+*.conf
+*.log
+
 brainfuck-tunnel-go
 config.json
