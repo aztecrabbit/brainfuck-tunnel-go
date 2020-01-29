@@ -14,12 +14,12 @@ import (
 
 var (
 	Loop = true
-    DefaultConfig = &Config{
+	DefaultConfig = &Config{
 		Host: "157.245.62.248",
 		Port: "22",
 		Username: "speedssh.com-aztecrabbit",
 		Password: "aztecrabbit",
-    }
+	}
 )
 
 func Stop() {
@@ -85,7 +85,7 @@ func (s *SshClient) Start() {
 				line = scanner.Text()
 
 				if strings.Contains(line, "debug1: pledge: ") {
-					s.ProxyRotator.Proxies = append(s.ProxyRotator.Proxies, "0.0.0.0:" + s.ListenPort)
+					s.ProxyRotator.AddProxy("0.0.0.0:" + s.ListenPort)
 					s.LogInfo("Connected", liblog.Colors["Y1"])
 
 				} else if strings.Contains(line, "Permission denied") {
