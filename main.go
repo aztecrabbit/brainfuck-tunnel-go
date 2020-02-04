@@ -17,7 +17,7 @@ import (
 const (
 	appName = "Brainfuck Tunnel"
 	appVersionName = "Go"
-	appVersionCode = "200120"
+	appVersionCode = "1.3.200120"
 
 	copyrightYear = "2020"
 	copyrightAuthor = "Aztec Rabbit"
@@ -37,8 +37,8 @@ type Config struct {
 
 func init() {
 	InterruptHandler.Handle = func() {
-		libredsocks.Stop(Redsocks)
 		libsshclient.Stop()
+		libredsocks.Stop(Redsocks)
 		liblog.LogKeyboardInterrupt()
 	}
 	InterruptHandler.Start()

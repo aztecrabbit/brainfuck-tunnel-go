@@ -53,16 +53,15 @@ func (s *SshClient) Stop() {
 }
 
 func (s *SshClient) Start() {
-	s.LogInfo(fmt.Sprintf("Connecting to %s port %s", s.Config.Host, s.Config.Port), liblog.Colors["G1"])
+	s.LogInfo("Connecting", liblog.Colors["G1"])
 
 	for Loop && s.Loop {
 		command := exec.Command(
-			"dash", "-c", fmt.Sprintf(
+			"sh", "-c", fmt.Sprintf(
 				"sshpass -p '%s' ssh -v %s -p %s -l '%s' " +
 					"-o StrictHostKeyChecking=no " +
 					"-o UserKnownHostsFile=/dev/null " +
 					"-o ProxyCommand='corkscrew 127.0.0.1 %s %%h %%p' " +
-					// "-o ProxyCommand='nc -X CONNECT -x %s:%s %%h %%p' " +
 					"-CND %s ",
 				s.Config.Password,
 				s.Config.Host,
@@ -84,7 +83,10 @@ func (s *SshClient) Start() {
 			for Loop && s.Loop && scanner.Scan() {
 				line = scanner.Text()
 
-				if strings.Contains(line, "debug1: pledge: ") {
+				if line == "debug1: Connection to port " + s.ListenPort + " forwarding to socks port 0 requested." {
+					liblog.LogReplace(s.ListenPort, liblog.Colors["G1"])
+
+				} else if strings.Contains(line, "debug1: pledge: ") {
 					s.ProxyRotator.AddProxy("0.0.0.0:" + s.ListenPort)
 					s.LogInfo("Connected", liblog.Colors["Y1"])
 
