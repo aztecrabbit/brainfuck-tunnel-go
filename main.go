@@ -1,38 +1,38 @@
 package main
 
 import (
-	"os"
 	"fmt"
-	"time"
+	"os"
 	"strconv"
+	"time"
 
-	"github.com/aztecrabbit/liblog"
-	"github.com/aztecrabbit/libutils"
-	"github.com/aztecrabbit/libinject"
-	"github.com/aztecrabbit/libredsocks"
-	"github.com/aztecrabbit/libproxyrotator"
 	"github.com/aztecrabbit/brainfuck-tunnel-go/src/libsshclient"
+	"github.com/aztecrabbit/libinject"
+	"github.com/aztecrabbit/liblog"
+	"github.com/aztecrabbit/libproxyrotator"
+	"github.com/aztecrabbit/libredsocks"
+	"github.com/aztecrabbit/libutils"
 )
 
 const (
-	appName = "Brainfuck Tunnel"
+	appName        = "Brainfuck Tunnel"
 	appVersionName = "Go"
-	appVersionCode = "1.3.200120"
+	appVersionCode = "1.3.200908"
 
-	copyrightYear = "2020"
+	copyrightYear   = "2020"
 	copyrightAuthor = "Aztec Rabbit"
 )
 
 var (
 	InterruptHandler = new(libutils.InterruptHandler)
-	Redsocks = new(libredsocks.Redsocks)
+	Redsocks         = new(libredsocks.Redsocks)
 )
 
 type Config struct {
-	ProxyRotator *libproxyrotator.Config
-	Inject *libinject.Config
+	ProxyRotator     *libproxyrotator.Config
+	Inject           *libinject.Config
 	SshClientThreads int
-	SshClient *libsshclient.Config
+	SshClient        *libsshclient.Config
 }
 
 func init() {
@@ -78,8 +78,8 @@ func main() {
 
 	time.Sleep(200 * time.Millisecond)
 
-	liblog.LogInfo("Proxy Rotator running on port " + ProxyRotator.Config.Port, "INFO", liblog.Colors["G1"])
-	liblog.LogInfo("Inject running on port " + Inject.Config.Port, "INFO", liblog.Colors["G1"])
+	liblog.LogInfo("Proxy Rotator running on port "+ProxyRotator.Config.Port, "INFO", liblog.Colors["G1"])
+	liblog.LogInfo("Inject running on port "+Inject.Config.Port, "INFO", liblog.Colors["G1"])
 
 	Redsocks.Config = libredsocks.DefaultConfig
 	Redsocks.Start()
