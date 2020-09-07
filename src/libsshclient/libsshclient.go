@@ -1,24 +1,24 @@
 package libsshclient
 
 import (
-	"os/exec"
-	"fmt"
-	"time"
 	"bufio"
+	"fmt"
+	"os/exec"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/aztecrabbit/liblog"
 	"github.com/aztecrabbit/libproxyrotator"
 )
 
 var (
-	Loop = true
+	Loop          = true
 	DefaultConfig = &Config{
-		Host: "157.245.62.248",
-		Port: "22",
-		Username: "speedssh.com-aztecrabbit",
-		Password: "aztecrabbit",
+		Host:     "127.0.0.1",
+		Port:     "22",
+		Username: "root",
+		Password: "toor",
 	}
 )
 
@@ -27,19 +27,19 @@ func Stop() {
 }
 
 type Config struct {
-	Host string
-	Port string
+	Host     string
+	Port     string
 	Username string
 	Password string
 }
 
 type SshClient struct {
 	ProxyRotator *libproxyrotator.ProxyRotator
-	Config *Config
-	InjectPort string
-	ListenPort string
-	Verbose bool
-	Loop bool
+	Config       *Config
+	InjectPort   string
+	ListenPort   string
+	Verbose      bool
+	Loop         bool
 }
 
 func (s *SshClient) LogInfo(message string, color string) {
@@ -58,11 +58,11 @@ func (s *SshClient) Start() {
 	for Loop && s.Loop {
 		command := exec.Command(
 			"sh", "-c", fmt.Sprintf(
-				"sshpass -p '%s' ssh -v %s -p %s -l '%s' " +
-					"-o StrictHostKeyChecking=no " +
-					"-o UserKnownHostsFile=/dev/null " +
-					"-o ProxyCommand='corkscrew 127.0.0.1 %s %%h %%p' " +
-					"-CND %s ",
+				"sshpass -p '%s' ssh -v %s -p %s -l '%s' "+
+					"-o StrictHostKeyChecking=no "+
+					"-o UserKnownHostsFile=/dev/null "+
+					"-o ProxyCommand='corkscrew 127.0.0.1 %s %%h %%p' "+
+					"-CND %s",
 				s.Config.Password,
 				s.Config.Host,
 				s.Config.Port,
@@ -83,7 +83,7 @@ func (s *SshClient) Start() {
 			for Loop && s.Loop && scanner.Scan() {
 				line = scanner.Text()
 
-				if line == "debug1: Connection to port " + s.ListenPort + " forwarding to socks port 0 requested." {
+				if line == "debug1: Connection to port "+s.ListenPort+" forwarding to socks port 0 requested." {
 					liblog.LogReplace(s.ListenPort, liblog.Colors["G1"])
 
 				} else if strings.Contains(line, "debug1: pledge: ") {
@@ -94,7 +94,7 @@ func (s *SshClient) Start() {
 					s.LogInfo("Access Denied", liblog.Colors["R1"])
 					s.Stop()
 
-				} else if strings.Contains(line, "Connection closed") {
+				} else if strings.Contains(line, "Connection closed by remote host") {
 					s.LogInfo("Connection closed", liblog.Colors["R1"])
 
 				} else if strings.Contains(line, "Address already in use") {
