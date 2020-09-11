@@ -61,7 +61,7 @@ func (s *SshClient) Start() {
 				"sshpass -p '%s' ssh -v %s -p %s -l '%s' "+
 					"-o StrictHostKeyChecking=no "+
 					"-o UserKnownHostsFile=/dev/null "+
-					"-o ProxyCommand='corkscrew 127.0.0.1 %s %%h %%p' "+
+					"-o ProxyCommand='ncat --proxy 127.0.0.1:%s --proxy-type http %%h %%p' "+
 					"-CND %s",
 				s.Config.Password,
 				s.Config.Host,
