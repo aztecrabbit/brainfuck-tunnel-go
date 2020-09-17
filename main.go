@@ -17,7 +17,7 @@ import (
 const (
 	appName        = "Brainfuck Tunnel"
 	appVersionName = "Go"
-	appVersionCode = "1.3.200908"
+	appVersionCode = "1.3.200911"
 
 	copyrightYear   = "2020"
 	copyrightAuthor = "Aztec Rabbit"
